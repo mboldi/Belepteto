@@ -1,21 +1,23 @@
-#https://learn.adafruit.com/drive-a-16x2-lcd-directly-with-a-raspberry-pi/python-code
+#https://learn.adafruit.com/character-lcd-with-raspberry-pi-or-beaglebone-black/wiring
 #LCD git library: https://github.com/adafruit/Adafruit_Python_CharLCD
 #RFID reader git library: https://github.com/adafruit/Adafruit_Python_PN532 
+#kartya uid: f14a92ed
 
-import Adafruit_CharLCD as LCD
 import binascii
 import sys
+import time
 
+import Adafruit_CharLCD as LCD
 import Adafruit_PN532 as PN532
 
 #nfc chip comm pins(SPI)
-nfc_CS   = 18
-nfc_MOSI = 23
-nfc_MISO = 24
-nfc_SCLK = 25
+nfc_CS   = 18 #SCL
+nfc_MOSI = 23 #MOSI
+nfc_MISO = 24 #MISO
+nfc_SCLK = 25 #SCK
 
 #create an instance of the pn532 class
-pn532 = PN532.PN532(cs=spi_CS, sclk=spi_SCLK, mosi=spi_MOSI, miso=spi_MISO)
+pn532 = PN532.PN532(cs=nfc_CS, sclk=nfc_SCLK, mosi=nfc_MOSI, miso=nfc_MISO)
 
 pn532.begin()
 
@@ -23,57 +25,83 @@ pn532.begin()
 ic, ver, rev, support = pn532.get_firmware_version()
 print('Found PN532 with firmware version: {0}.{1}'.format(ver, rev))
 
-# Configure PN532 to communicate with MiFare cards. (nem tudom, hogy ez kell-e nekunk)
+# Configure PN532 to communicate with MiFare cards. 
 pn532.SAM_configuration()
 
 # CharLCD pin configuration:
 lcd_rs    = 27  
 lcd_en    = 22
-lcd_d4    = 25
-lcd_d5    = 24
-lcd_d6    = 23
-lcd_d7    = 18
-lcd_red   = 4
-lcd_green = 17
-lcd_blue  = 7
+lcd_d4    = 5
+lcd_d5    = 6
+lcd_d6    = 13
+lcd_d7    = 19
+lcd_red   = 16
+lcd_green = 21
+lcd_blue  = 20
 
 #CharLCD rows abd coloumns config
 lcd_columns = 16
 lcd_rows    = 2
 
 # Initialize the LCD using the pins above.
-lcd = LCD.Adafruit_CharLCD(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7, lcd_columns, lcd_rows, lcd_red, lcd_green, lcd_blue)
+lcd = LCD.Adafruit_RGBCharLCD(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7,
+                              lcd_columns, lcd_rows, lcd_red, lcd_green, lcd_blue)
 
 
-def lcdScrollMsg(message, color):
+def lcdMsg(message, color):
+	lcd.clear()
 	if color == 'blue':
 		lcd.set_color(0.0, 0.0, 1.0) #blue background color
 	elif color == 'green':
 		lcd.set_color(0.0, 1.0, 0.0) #green background color
+	elif color == 'white':
+		lcd.set_color(1.0, 1.0, 1.0) #white bg color
+	elif color == 'none':
+		lcd.set_color(0.0, 0.0, 0.0) #no bg color
 
-	lcd.clear()
-	for i in range(lcd_columns-len(message)):
-		time.sleep(0.5)
-		lcd.move_left()
+	lcd.message(message)
 
-def commWithServer(cardID):
+	if '\n' not in message:
+		case = len(message) > lcd_columns
+	else:
+		case =  len(message.split('\n')[0]) > lcd_columns or len(message.split('\n')[1]) > lcd_columns
+		
+	if case:
+		for i in range(len(message)-lcd_columns):
+			time.sleep(0.3)
+			lcd.move_left()
+
+#def commWithServer(cardID):
 	#nincs meg meg
 
-def recieveDataFromServer():
-	#nem tudom, hogy ez egyaltalan kell-e, vagy ahogy elkuldi az id-t azon a fuggvenyen belul a server valaszol is neki
+lastRead = time.time()
 
-lcdScrollMsg('Kérem érintse a kártyát a leolvasóhoz', 'blue')
+lcdMsg('Erintsen kartyat\n a leolvasohoz!', 'white')
+
+wasRead = False
 
 while True:
 	uid = pn532.read_passive_target() #read card (wheather it is there or not)
 
 	if uid is None:
+		if wasRead:
+			lcdMsg('Erintsen kartyat\n a leolvasohoz!', 'white')
+			wasRead = False
+		if(time.time()-lastRead) > 60: 
+			lcdMsg('Erintsen kartyat\n a leolvasohoz!', 'none')
 		continue
 
 	print('Found card with UID: 0x{0}'.format(binascii.hexlify(uid)))
 
-	commWithServer(binascii.hexlify(uid))
+	if binascii.hexlify(uid) == 'f14a92ed' and not wasRead:
+		print "Udv Boldi!"
+		wasRead = True
 
-	recieveDataFromServer()
+	#commWithServer(binascii.hexlify(uid))
 
-	lcdScrollMsg('Kártya leolvasva', 'green')
+	lcdMsg('Kartya leolvasva', 'green')
+	time.sleep(2)
+
+	lastRead = time.time()
+
+	time.sleep(0.5)
