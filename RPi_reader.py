@@ -58,6 +58,8 @@ def lcdMsg(message, color):
 		lcd.set_color(1.0, 1.0, 1.0) #white bg color
 	elif color == 'none':
 		lcd.set_color(0.0, 0.0, 0.0) #no bg color
+	elif color == 'red':
+		lcd.set_color(1.0, 0.0, 0.0) #red bg color
 
 	lcd.message(message)
 
@@ -93,13 +95,17 @@ while True:
 
 	print('Found card with UID: 0x{0}'.format(binascii.hexlify(uid)))
 
-	if binascii.hexlify(uid) == 'f14a92ed' and not wasRead:
-		print "Udv Boldi!"
-		wasRead = True
+	if binascii.hexlify(uid) == '01020304' and not wasRead:
+		lcdMsg('Access granted!', 'green')
+	else:
+		lcdMsg('Hozzaferes megtagadva!', 'red')
+		time.sleep(0.5)
+		lcdMsg('Hozzaferes megtagadva!', 'red')
 
 	#commWithServer(binascii.hexlify(uid))
 
-	lcdMsg('Kartya leolvasva', 'green')
+	wasRead = True
+	#lcdMsg('Kartya leolvasva', 'green')
 	time.sleep(2)
 
 	lastRead = time.time()
